@@ -1,6 +1,8 @@
-Bloxd-Libs \n
-![Bloxd.io](https://img.shields.io/badge/Bloxd.io-Libraries-ff69b4?style=for-the-badge) \n
-![Free](https://img.shields.io/badge/Price-Free-8A2BE2?style=for-the-badge)\n
+Bloxd-Libs
+
+![Bloxd.io](https://img.shields.io/badge/Bloxd.io-Libraries-ff69b4?style=for-the-badge)
+
+![Free](https://img.shields.io/badge/Price-Free-8A2BE2?style=for-the-badge)
 A collection of useful libraries for Bloxd.io, made by MangoIsSleepy.
 The goal is to make complicated or repetitive Bloxd scripting easier without having to rewrite the same systems every time.
 ---
