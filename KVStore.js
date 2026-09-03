@@ -9,7 +9,7 @@
 ╚══════════════════════════════════════════════════════════════╝
 */
 
-const CFG={chunks:[{x:397504,y:-320,z:397504},{x:397536,y:-320,z:397504},{x:397568,y:-320,z:397504}],bucketCount:512,placeholderBlock:"Bedrock",maxBlockBytes:1800,s2MaxCount:4,s1RingCap:500,s2CandCap:40,s3CandCap:40,sweepSlicePerCall:200}
+const CFG={chunks:[{x:397504,y:-320,z:397504},{x:397536,y:-320,z:397504},{x:397568,y:-320,z:397504}],bucketCount:512,maxChainBlocks:4,placeholderBlock:"Bedrock",maxBlockBytes:1800,s2MaxCount:4,s1RingCap:500,s2CandCap:40,s3CandCap:40,sweepSlicePerCall:200}
 
 const SLOTS_PER_CHUNK=32768
 
@@ -19,9 +19,11 @@ function hashKey(key){let h=2166136261;for(let i=0;i<key.length;i++){h^=key.char
 
 function bucketAddr(key){return hashKey(key)%CFG.bucketCount}
 
-function readBucket(bIdx){let[x,y,z]=addrToPos(bIdx),d=api.getBlockData(x,y,z);return(d&&d.entries)?d.entries:{}}
+function readBucket(bIdx){let[x,y,z]=addrToPos(bIdx),d=api.getBlockData(x,y,z),entries=(d&&d.entries)?Object.assign({},d.entries):{},chain=(d&&d.overflow)?d.overflow:[];for(let i=0;i<chain.length;i++){let[ox,oy,oz]=addrToPos(chain[i]),od=api.getBlockData(ox,oy,oz);if(od&&od.entries)Object.assign(entries,od.entries)}return entries}
 
-function writeBucket(bIdx,entries){let[x,y,z]=addrToPos(bIdx);if(bIdx===0){let cur=api.getBlockData(x,y,z)||{};cur.entries=entries;cur.provisioned=true;cur.nextFree=alloc.nextFree;api.setBlockData(x,y,z,cur)}else{api.setBlockData(x,y,z,{entries})}}
+function splitEntries(entries,firstChunkExtra){let keys=Object.keys(entries),chunks=[],cur={};for(let i=0;i<keys.length;i++){let k=keys[i],trial=Object.assign({},cur,{[k]:entries[k]}),extra=chunks.length===0?firstChunkExtra:{},trialBytes=JSON.stringify(Object.assign({entries:trial},extra)).length;if(trialBytes>CFG.maxBlockBytes&&Object.keys(cur).length>0){chunks.push(cur);cur={}}cur[k]=entries[k]}chunks.push(cur);return chunks}
+
+function writeBucket(bIdx,entries){let[px,py,pz]=addrToPos(bIdx),oldPrimary=api.getBlockData(px,py,pz),oldOverflow=(oldPrimary&&oldPrimary.overflow)?oldPrimary.overflow:[],extra=bIdx===0?{provisioned:true,nextFree:alloc.nextFree}:{},chunks=splitEntries(entries,extra);if(chunks.length>CFG.maxChainBlocks)return false;let overflowAddrs=[];for(let i=1;i<chunks.length;i++){let addr=allocS1();overflowAddrs.push(addr);let[x,y,z]=addrToPos(addr);api.setBlockData(x,y,z,{entries:chunks[i]})}let primary=Object.assign({entries:chunks[0]||{}},extra);if(overflowAddrs.length>0)primary.overflow=overflowAddrs;api.setBlockData(px,py,pz,primary);for(let i=0;i<oldOverflow.length;i++)if(overflowAddrs.indexOf(oldOverflow[i])===-1)freeS1(oldOverflow[i]);return true}
 
 const alloc={nextFree:CFG.bucketCount,s1Ring:[],s2Open:null,s2OpenData:{},s3Open:null,s3OpenData:{},s2Cand:[],s3Cand:[],sweepCursor:0,lastKeepAlive:0,initialized:false}
 
@@ -65,7 +67,7 @@ function kvGet(key){if(!ensureInit())return undefined;let bIdx=bucketAddr(key),e
 
 function kvDelete(key){if(!ensureInit())return;let bIdx=bucketAddr(key),entries=readBucket(bIdx),entry=entries[key];if(!entry)return;delete entries[key];writeBucket(bIdx,entries);if(entry.t===0)freeS1(entry.a);else if(entry.t===2)packedDelete(entry,key)}
 
-function collectReferenced(refSet){refSet.add(0);for(let b=0;b<CFG.bucketCount;b++){let entries=readBucket(b);for(let k in entries){let e=entries[k];if(e.t===0||e.t===2)refSet.add(e.a);else if(e.t===1){e.a.forEach(x=>refSet.add(x));e.b.forEach(x=>refSet.add(x))}}}}
+function collectReferenced(refSet){refSet.add(0);for(let b=0;b<CFG.bucketCount;b++){let[x,y,z]=addrToPos(b),d=api.getBlockData(x,y,z),entries=(d&&d.entries)?Object.assign({},d.entries):{},chain=(d&&d.overflow)?d.overflow:[];for(let i=0;i<chain.length;i++){refSet.add(chain[i]);let[ox,oy,oz]=addrToPos(chain[i]),od=api.getBlockData(ox,oy,oz);if(od&&od.entries)Object.assign(entries,od.entries)}for(let k in entries){let e=entries[k];if(e.t===0||e.t===2)refSet.add(e.a);else if(e.t===1){e.a.forEach(x=>refSet.add(x));e.b.forEach(x=>refSet.add(x))}}}}
 
 function runSweep(){if(!ensureInit())return;let refSet=new Set();collectReferenced(refSet);let start=alloc.sweepCursor,end=Math.min(alloc.nextFree,start+CFG.sweepSlicePerCall);for(let a=start;a<end;a++){if(a<CFG.bucketCount)continue;if(!refSet.has(a))freeS1(a)}alloc.sweepCursor=end>=alloc.nextFree?CFG.bucketCount:end}
 
