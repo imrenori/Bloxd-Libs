@@ -103,6 +103,10 @@ function kvGet(key:string):any{if(!ensureInit())return undefined;let h=hashKey(k
 
 function kvDelete(key:string):void{if(!ensureInit())return;guarded(()=>{let h=hashKey(key),ctx=resolveBucket(h),bucketRaw=readBucketMerged(ctx.bucketAddr),entries=bucketRaw.entries,entry=entries[key];if(!entry)return;delete entries[key];alloc.pendingFree.push({e:entry,k:key});finalizeBucketWrite(ctx.bucketAddr,bucketRaw.d,entries,bucketRaw.chained,bucketRaw.overflow);flushFree()})}
 
+//function globMatch(p:string,s:string):boolean{let pi=0,si=0,star=-1,mark=0;while(si<s.length){if(pi<p.length&&p[pi]==="*"){star=pi++;mark=si}else if(pi<p.length&&(p[pi]==="?"||p[pi]===s[si])){pi++;si++}else if(star>=0){pi=star+1;si=++mark}else return false}while(pi<p.length&&p[pi]==="*")pi++;return pi===p.length}
+
+function kvSearch(pattern?:any):string[]{let re:RegExp;if(pattern===undefined)re=/./;else if(pattern instanceof RegExp)re=pattern;else if(typeof pattern==="string"){try{re=new RegExp(pattern)}catch(e:any){throw new Error("KVStore: search pattern "+JSON.stringify(pattern)+" is not valid regex ("+(e&&e.message)+"). Use regex such as \"^DevKey\", \"TestValue\" or \".\" for all keys, not * wildcards.")}}else throw new Error("KVStore: search pattern must be a regex string or RegExp, found "+typeof pattern+". Use something like \"^DevKey\", \"TestValue\" or /^DevKey\\d+$/.");if(!ensureInit())return[];let out:string[]=[],seen=new Set<number>();for(let dirAddr of alloc.dirBlocks){let ptrs=getDirBlockPtrs(dirAddr);for(let i=0;i<ptrs.length;i++){let b=ptrs[i];if(seen.has(b))continue;seen.add(b);let entries=readBucketMerged(b).entries;for(let k in entries){re.lastIndex=0;if(re.test(k))out.push(k)}}}return out.sort()}
+
 function markBit(bitmap:Uint8Array,addr:number):void{let byteIdx=addr>>3,bit=addr&7;if(byteIdx<bitmap.length)bitmap[byteIdx]|=(1<<bit)}
 function isBitMarked(bitmap:Uint8Array,addr:number):boolean{let byteIdx=addr>>3,bit=addr&7;if(byteIdx>=bitmap.length)return true;return(bitmap[byteIdx]&(1<<bit))!==0}
 
@@ -116,7 +120,7 @@ function runSweep():void{if(!ensureInit())return;guarded(()=>{if(!alloc.sweep)in
 
 function kvTick():void{ensureInit();runSweep()}
 
-return{set:kvSet,get:kvGet,delete:kvDelete,sweep:runSweep,tick:kvTick}
+return{set:kvSet,get:kvGet,delete:kvDelete,search:kvSearch,sweep:runSweep,tick:kvTick}
 }
 
 export let KVStore=_createKVStore()
