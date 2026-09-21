@@ -6,23 +6,26 @@
 ╚══════════════════════════════════════════════════════════════╝
 */
 
-export type Attrs = ItemAttributes & Record<string, any>;
-export type Item = { name: string; amount: number | null; attributes: Attrs };
-export type MatchInfo = Record<string, any>;
-export type MatchCtx = { playerId: PlayerId; slot: number; rule: string };
-export type Ctx = MatchCtx & { m: MatchInfo };
-export type Matcher = null | boolean | number | string | RegExp | ((value: any, item: Item) => any) | Matcher[];
-export type MatchFn = (item: Item, ctx: MatchCtx) => any;
-export type MatchSpec = string | RegExp | MatchFn | MatchSpec[] | Record<string, Matcher>;
-export type Action = (item: Item, ctx: Ctx) => void;
-export type ItemRule = {
+type PlayerId = Parameters<typeof api.getItemSlot>[0];
+type SetSlotArgs = Parameters<typeof api.setItemSlot>;
+
+type Attrs = { customDisplayName?: string; customDescription?: string; customAttributes?: Record<string, any>; [key: string]: any };
+type Item = { name: string; amount: number | null; attributes: Attrs };
+type MatchInfo = Record<string, any>;
+type MatchCtx = { playerId: PlayerId; slot: number; rule: string };
+type Ctx = MatchCtx & { m: MatchInfo };
+type Matcher = null | boolean | number | string | RegExp | ((value: any, item: Item) => any) | Matcher[];
+type MatchFn = (item: Item, ctx: MatchCtx) => any;
+type MatchSpec = string | RegExp | MatchFn | MatchSpec[] | Record<string, Matcher>;
+type Action = (item: Item, ctx: Ctx) => void;
+type ItemRule = {
     id?: string;
     match: MatchSpec;
     do: Action | Action[];
     chain?: boolean;
     once?: boolean | string;
 };
-export type ApplyResult = {
+type ApplyResult = {
     changed: boolean;
     removed: boolean;
     matched: string[];
@@ -31,7 +34,7 @@ export type ApplyResult = {
     attributes?: Attrs;
 };
 
-type SlotLike = { name: string; amount?: PNull<number>; attributes?: ItemAttributes };
+type SlotLike = { name: string; amount?: number | null; attributes?: Attrs };
 type Compiled = {
     label: string;
     test: (item: Item, ctx: MatchCtx) => MatchInfo | null;
@@ -285,7 +288,7 @@ const scan = (playerId: PlayerId, firstSlot?: number, lastSlot?: number): number
         const r = apply(slot, playerId, idx);
         if (!r.changed) continue;
         if (r.removed) api.setItemSlot(playerId, idx, "Air", null, {}, cfg.tellClient);
-        else api.setItemSlot(playerId, idx, r.name as ItemName, r.amount, r.attributes as ItemAttributes, cfg.tellClient);
+        else api.setItemSlot(playerId, idx, r.name as SetSlotArgs[2], r.amount, r.attributes as SetSlotArgs[4], cfg.tellClient);
         changedCount++;
     }
     return changedCount;
