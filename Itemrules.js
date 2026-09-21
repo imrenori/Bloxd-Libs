@@ -1,8 +1,11 @@
 /*
 ╔══════════════════════════════════════════════════════════════╗
-║                          ITEM RULES                          ║
-║                                                              ║
-║         Rule Based Item Matching And Transformation          ║
+║                          ITEM RULES                           ║
+║                                                                ║
+║                     Copyright © 2026                          ║
+║                         _Xenon_                                ║
+║                                                                ║
+║         Rule Based Item Matching And Transformation           ║
 ╚══════════════════════════════════════════════════════════════╝
 */
 
@@ -38,6 +41,8 @@ function apply(slot:any,playerId:any,index:number):any{let matched:string[]=[],i
 
 function scan(playerId:any,firstSlot?:number,lastSlot?:number):number{let first=firstSlot===undefined?cfg.firstSlot:firstSlot,last=lastSlot===undefined?cfg.lastSlot:lastSlot,n=0;for(let idx=first;idx<=last;idx++){let slot:any=api.getItemSlot(playerId,idx);if(!slot)continue;let r=apply(slot,playerId,idx);if(!r.changed)continue;if(r.removed)api.setItemSlot(playerId,idx,"Air",null,{},cfg.tellClient);else api.setItemSlot(playerId,idx,r.name,r.amount,r.attributes,cfg.tellClient);n++}return n}
 
+function exact(value:any,ignoreKeys?:string[]):(v:any)=>any{let strip=(x:any):any=>{if(!isObj(x)||!ignoreKeys||ignoreKeys.length===0)return x;let c:any={...x};for(let k of ignoreKeys)delete c[k];return c};let target=strip(value);return(v:any):any=>deepEq(strip(v),target)?[]:null}
+
 function config(opts:any):any{if(!isObj(opts)||Array.isArray(opts))throw new Error("ItemRules: config expects an object like { firstSlot: 0, lastSlot: 50, tellClient: true }, found "+(Array.isArray(opts)?"a list":typeof opts)+".");if(opts.ignoreEnchants!==undefined)throw new Error("ItemRules: config ignoreEnchants was removed because rules now see the raw item. Test an enchant with a path key such as \"attributes.customAttributes.enchantments.Forged\": null (null means absent) inside match, and remove ignoreEnchants from your config call.");for(let k of Object.keys(opts))if(CONFIG_KEYS.indexOf(k)===-1)throw new Error("ItemRules: config has unknown key '"+k+"'. Valid keys: "+CONFIG_KEYS.join(", ")+".");for(let k of["firstSlot","lastSlot"]){if(opts[k]===undefined)continue;if(typeof opts[k]!=="number")throw new Error("ItemRules: config "+k+" must be a number, found "+typeof opts[k]+".");cfg[k]=opts[k]}if(opts.tellClient!==undefined)cfg.tellClient=!!opts.tellClient;return Object.assign({},cfg)}
 
-export let ItemRules={config,add,addAll:(list:any[]):any[]=>list.map((r:any)=>add(r)),clear:():void=>{rules.length=0;for(let k of Object.keys(ids))delete ids[k]},list:():string[]=>rules.map((r:any)=>r.label),apply,scan,run:scan}
+export let ItemRules={config,add,addAll:(list:any[]):any[]=>list.map((r:any)=>add(r)),clear:():void=>{rules.length=0;for(let k of Object.keys(ids))delete ids[k]},list:():string[]=>rules.map((r:any)=>r.label),apply,scan,run:scan,exact}
