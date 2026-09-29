@@ -166,7 +166,6 @@ if(!d||"string"!=typeof d.p)throw new Error("KVStore: value for key "+JSON.strin
 out+=d.p}return out}(entry,key):function(entry,key){let d=rd(entry.a)
 return d?d[key]:void 0}(entry,key),void 0===raw?void 0:JSON.parse(raw)):void 0},delete:function(key){ensureInit()&&guarded(()=>{let ctx=resolveBucket(hashKey(key)),bucketRaw=readBucketMerged(ctx.bucketAddr),entries=bucketRaw.entries,entry=entries[key]
 entry&&(delete entries[key],alloc.pendingFree.push({e:entry,k:key}),finalizeBucketWrite(ctx.bucketAddr,bucketRaw.d,entries,bucketRaw.chained,bucketRaw.overflow),flushFree())})}
-//function globMatch(p:string,s:string):boolean{let pi=0,si=0,star=-1,mark=0;while(si<s.length){if(pi<p.length&&p[pi]==="*"){star=pi++;mark=si}else if(pi<p.length&&(p[pi]==="?"||p[pi]===s[si])){pi++;si++}else if(star>=0){pi=star+1;si=++mark}else return false}while(pi<p.length&&p[pi]==="*")pi++;return pi===p.length}
 ,search:function(pattern){let re
 if(void 0===pattern)re=/./
 else if(pattern instanceof RegExp)re=pattern
